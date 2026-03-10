@@ -176,10 +176,10 @@ def _set_refresh_cookie(response: Response, refresh_token: str, settings: Settin
         httponly=True,
         samesite="lax",
         max_age=REFRESH_COOKIE_MAX_AGE,
-        path="/api/v1/auth/refresh",   # scoped — browser only sends this to the refresh endpoint
+        path="/",   # scoped — browser only sends this to the refresh endpoint
     )
 
 
 
 def _clear_refresh_cookie(response: Response) -> None:
-    response.delete_cookie(key=REFRESH_COOKIE_NAME, path="/api/v1/auth/refresh")
+    response.delete_cookie(key=REFRESH_COOKIE_NAME, path="/")
