@@ -7,10 +7,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import Settings
 from src.core.exceptions import DatabaseError
-from src.data.models.postgres import User, RefreshToken
+from src.data.models.postgres import User, UserRole, Role, RefreshToken
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# RoleRepository
+# ---------------------------------------------------------------------------
+
+class RoleRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_by_name(self, role_name: str) -> Role | None:
+        try:
+            result = await self.db.execute(select(Role).where(Role.role_name == role_name))
+            return result.scalar_one_or_none()
+        except SQLAlchemyError as exc:
+            logger.error("get_role_by_name failed | role=%s error=%s", role_name, exc)
+            raise DatabaseError("Failed to fetch role") from exc
+
+
+# ---------------------------------------------------------------------------
+# UserRepository
+# ---------------------------------------------------------------------------
 
 class UserRepository:
     def __init__(self, db: AsyncSession):
@@ -33,35 +54,54 @@ class UserRepository:
             raise DatabaseError("Failed to fetch user by id") from exc
 
     async def create(self, name: str, email: str, password_hash: str) -> User:
+        """Creates a user with the default 'finance_associate' role."""
+        return await self.create_with_role(name, email, password_hash, "finance_associate")
+
+    async def create_with_role(self, name: str, email: str, password_hash: str, role_name: str) -> User:
+        """Creates a user and assigns the given role via the user_roles table."""
         try:
+            # 1. Fetch the role row
+            role_repo = RoleRepository(self.db)
+            role = await role_repo.get_by_name(role_name)
+            if not role:
+                raise DatabaseError(f"Role '{role_name}' not found in roles table")
+
+            # 2. Create the user
             user = User(name=name, email=email, password_hash=password_hash)
             self.db.add(user)
+            await self.db.flush()  # get user_id
+
+            # 3. Assign the role
+            user_role = UserRole(user_id=user.user_id, role_id=role.role_id)
+            self.db.add(user_role)
             await self.db.flush()
-            logger.debug("User staged for creation | email=%s", email)
+
+            logger.debug("User staged with role | email=%s role=%s", email, role_name)
             return user
+        except DatabaseError:
+            raise
         except SQLAlchemyError as exc:
-            logger.error("create user failed | email=%s error=%s", email, exc)
+            logger.error("create_with_role failed | email=%s error=%s", email, exc)
             raise DatabaseError("Failed to create user") from exc
 
-    async def create_with_role(self, name: str, email: str, password_hash: str, role: str) -> User:
+    async def get_all_by_role(self, role_name: str) -> list[User]:
+        """Returns all users assigned to the given role."""
         try:
-            user = User(name=name, email=email, password_hash=password_hash, role=role)
-            self.db.add(user)
-            await self.db.flush()
-            logger.debug("User staged for creation with role | email=%s role=%s", email, role)
-            return user
-        except SQLAlchemyError as exc:
-            logger.error("create user with role failed | email=%s error=%s", email, exc)
-            raise DatabaseError("Failed to create user") from exc
-
-    async def get_all_by_role(self, role: str) -> list[User]:
-        try:
-            result = await self.db.execute(select(User).where(User.role == role))
+            result = await self.db.execute(
+                select(User)
+                .join(User.user_role)
+                .join(UserRole.role)
+                .where(Role.role_name == role_name)
+            )
             return list(result.scalars().all())
         except SQLAlchemyError as exc:
-            logger.error("get_all_by_role failed | role=%s error=%s", role, exc)
+            logger.error("get_all_by_role failed | role=%s error=%s", role_name, exc)
             raise DatabaseError("Failed to fetch users by role") from exc
 
+
+# ---------------------------------------------------------------------------
+# RefreshTokenRepository
+# ---------------------------------------------------------------------------
 
 class RefreshTokenRepository:
     def __init__(self, db: AsyncSession):

@@ -1,5 +1,7 @@
 from .models import (
     Base,
+    Role,
+    UserRole,
     User,
     RefreshToken,
     InvoiceData,
@@ -20,7 +22,7 @@ from .models import (
 )
 
 __all__ = [
-    "Base", "User", "RefreshToken", "InvoiceData", "PaymentDetail",
+    "Base", "Role", "UserRole", "User", "RefreshToken", "InvoiceData", "PaymentDetail",
     "MatchingPaymentInvoice", "EmailInbox", "EmailAttachment", "DisputeType",
     "DisputeMaster", "DisputeAIAnalysis", "AnalysisSupportingRef",
     "DisputeMemoryEpisode", "DisputeMemorySummary", "DisputeAssignment",

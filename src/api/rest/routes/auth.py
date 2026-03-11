@@ -150,7 +150,7 @@ async def create_fa_route(
         name=body.name,
         email=body.email,
         password_hash=hash_password(body.password),
-        role="finance_associate",
+        role_name="finance_associate",
     )
     await db.commit()
     await db.refresh(user)
@@ -240,7 +240,7 @@ async def bootstrap_admin_route(
         name=body.name,
         email=body.email,
         password_hash=hash_password(body.password),
-        role="admin",
+        role_name="admin",
     )
     await db.commit()
     await db.refresh(user)

@@ -1,7 +1,7 @@
 from sqlalchemy import (
     Column, Integer, String, Text, Boolean, Numeric,
     TIMESTAMP, JSON, ForeignKey, Index, func, text,
-    Enum as SAEnum,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from pgvector.sqlalchemy import VECTOR
@@ -10,6 +10,21 @@ from sqlalchemy.orm import DeclarativeBase, relationship
 
 class Base(DeclarativeBase):
     pass
+
+
+# ---------------------------------------------------------------------------
+# Roles
+# ---------------------------------------------------------------------------
+class Role(Base):
+    __tablename__ = "roles"
+
+    role_id   = Column(Integer, primary_key=True)
+    role_name = Column(String(50), unique=True, nullable=False)
+
+    user_roles = relationship("UserRole", back_populates="role", lazy="select")
+
+    def __repr__(self) -> str:
+        return f"<Role id={self.role_id} name={self.role_name}>"
 
 
 # ---------------------------------------------------------------------------
@@ -22,18 +37,47 @@ class User(Base):
     name          = Column(String(100), nullable=False)
     email         = Column(String(150), unique=True, nullable=False)
     password_hash = Column(Text, nullable=False)
-    role          = Column(SAEnum('admin', 'finance_associate', name='user_role'), nullable=False, server_default='finance_associate')
     created_at    = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
 
     assignments    = relationship("DisputeAssignment",    back_populates="assignee",  lazy="select")
     activity_logs  = relationship("DisputeActivityLog",   back_populates="performer", lazy="select")
     status_history = relationship("DisputeStatusHistory", back_populates="performer", lazy="select")
-    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")  # ← "user" not "users"
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    user_role      = relationship("UserRole", back_populates="user", uselist=False,
+                                  cascade="all, delete-orphan", lazy="joined")
+
     __table_args__ = (Index("ix_users_email", "email"),)
 
+    @property
+    def role(self) -> str:
+        """Convenience property — returns role_name string or 'finance_associate' as default."""
+        if self.user_role and self.user_role.role:
+            return self.user_role.role.role_name
+        return "finance_associate"
 
     def __repr__(self) -> str:
         return f"<User id={self.user_id} email={self.email}>"
+
+
+# ---------------------------------------------------------------------------
+# UserRole  (join table — one role per user)
+# ---------------------------------------------------------------------------
+class UserRole(Base):
+    __tablename__ = "user_roles"
+
+    user_role_id = Column(Integer, primary_key=True)
+    user_id      = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"),   nullable=False)
+    role_id      = Column(Integer, ForeignKey("roles.role_id", ondelete="RESTRICT"),  nullable=False)
+    assigned_at  = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="user_role")
+    role = relationship("Role", back_populates="user_roles", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_user_roles_user_id"),
+        Index("ix_user_roles_user_id", "user_id"),
+        Index("ix_user_roles_role_id", "role_id"),
+    )
 
 
 # ---------------------------------------------------------------------------

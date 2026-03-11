@@ -1,3 +1,3 @@
-from .auth_repository import UserRepository, RefreshTokenRepository
+from .auth_repository import RoleRepository, UserRepository, RefreshTokenRepository
 
-__all__ = ["UserRepository", "RefreshTokenRepository"]
+__all__ = ["RoleRepository", "UserRepository", "RefreshTokenRepository"]
