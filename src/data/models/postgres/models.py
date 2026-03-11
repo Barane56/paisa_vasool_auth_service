@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Column, Integer, String, Text, Boolean, Numeric,
     TIMESTAMP, JSON, ForeignKey, Index, func, text,
+    Enum as SAEnum,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from pgvector.sqlalchemy import VECTOR
@@ -21,6 +22,7 @@ class User(Base):
     name          = Column(String(100), nullable=False)
     email         = Column(String(150), unique=True, nullable=False)
     password_hash = Column(Text, nullable=False)
+    role          = Column(SAEnum('admin', 'finance_associate', name='user_role'), nullable=False, server_default='finance_associate')
     created_at    = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
 
     assignments    = relationship("DisputeAssignment",    back_populates="assignee",  lazy="select")

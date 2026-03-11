@@ -41,13 +41,14 @@ async def _issue_token_pair(
     user_id: int,
     settings: Settings,
     token_repo: RefreshTokenRepository,
+    role: str = "finance_associate",
 ) -> tuple[str, str]:
     """
     Mint a new access + refresh pair.
     Stages the refresh token row — caller must commit.
     Returns (access_token, refresh_token).
     """
-    access_token,  _            = create_access_token(user_id, settings)
+    access_token,  _            = create_access_token(user_id, settings, role)
     refresh_token, refresh_jti  = create_refresh_token(user_id, settings)
 
     await token_repo.create(
@@ -106,7 +107,7 @@ async def login(body: LoginRequest, db: AsyncSession, settings: Settings) -> Log
         if not user or not verify_password(body.password, user.password_hash):
             raise InvalidCredentialsError()
 
-        access_token, refresh_token = await _issue_token_pair(user.user_id, settings, token_repo)
+        access_token, refresh_token = await _issue_token_pair(user.user_id, settings, token_repo, user.role)
         await db.commit()
         await db.refresh(user)
 

@@ -43,6 +43,25 @@ class UserRepository:
             logger.error("create user failed | email=%s error=%s", email, exc)
             raise DatabaseError("Failed to create user") from exc
 
+    async def create_with_role(self, name: str, email: str, password_hash: str, role: str) -> User:
+        try:
+            user = User(name=name, email=email, password_hash=password_hash, role=role)
+            self.db.add(user)
+            await self.db.flush()
+            logger.debug("User staged for creation with role | email=%s role=%s", email, role)
+            return user
+        except SQLAlchemyError as exc:
+            logger.error("create user with role failed | email=%s error=%s", email, exc)
+            raise DatabaseError("Failed to create user") from exc
+
+    async def get_all_by_role(self, role: str) -> list[User]:
+        try:
+            result = await self.db.execute(select(User).where(User.role == role))
+            return list(result.scalars().all())
+        except SQLAlchemyError as exc:
+            logger.error("get_all_by_role failed | role=%s error=%s", role, exc)
+            raise DatabaseError("Failed to fetch users by role") from exc
+
 
 class RefreshTokenRepository:
     def __init__(self, db: AsyncSession):

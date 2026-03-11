@@ -68,10 +68,10 @@ def _build_token(
 
 # ── Public token creators ──────────────────────────────────────────────────────
 
-def create_access_token(user_id: int, settings: Settings) -> tuple[str, str]:
+def create_access_token(user_id: int, settings: Settings, role: str = "finance_associate") -> tuple[str, str]:
     """Returns (access_token, jti)."""
     return _build_token(
-        payload={"sub": str(user_id), "user_id": user_id},
+        payload={"sub": str(user_id), "user_id": user_id, "role": role},
         secret=settings.JWT_SECRET_KEY,
         algorithm=settings.JWT_ALGORITHM,
         expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -124,6 +124,7 @@ def decode_refresh_token(token: str, settings: Settings) -> dict:
 class TokenIdentity:
     user_id: int
     jti: str
+    role: str = "finance_associate"
 
 
 async def get_current_user_id(
@@ -145,11 +146,12 @@ async def get_current_user_id(
 
     user_id = payload.get("user_id")
     jti     = payload.get("jti")
+    role    = payload.get("role", "finance_associate")
 
     if user_id is None or jti is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed token payload")
 
-    return TokenIdentity(user_id=int(user_id), jti=jti)
+    return TokenIdentity(user_id=int(user_id), jti=jti, role=role)
 
 
 # ── Cookie helpers ─────────────────────────────────────────────────────────────
