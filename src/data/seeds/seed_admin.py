@@ -11,7 +11,7 @@ import logging
 
 from passlib.context import CryptContext
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.config import get_settings
@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 
 _pwd_ctx = CryptContext(schemes=["argon2"], deprecated="auto")
 
-ADMIN_EMAIL    = "admin@admin.com"
+ADMIN_EMAIL = "admin@admin.com"
 ADMIN_PASSWORD = "admin"
-ADMIN_NAME     = "Administrator"
+ADMIN_NAME = "Administrator"
 
 
 async def seed() -> None:

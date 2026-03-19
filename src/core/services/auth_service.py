@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 # ── Private helper ─────────────────────────────────────────────────────────────
 
+
 async def _issue_token_pair(
     user_id: int,
     settings: Settings,
@@ -48,8 +49,8 @@ async def _issue_token_pair(
     Stages the refresh token row — caller must commit.
     Returns (access_token, refresh_token).
     """
-    access_token,  _            = create_access_token(user_id, settings, role)
-    refresh_token, refresh_jti  = create_refresh_token(user_id, settings)
+    access_token, _ = create_access_token(user_id, settings, role)
+    refresh_token, refresh_jti = create_refresh_token(user_id, settings)
 
     await token_repo.create(
         user_id=user_id,
@@ -62,9 +63,12 @@ async def _issue_token_pair(
 
 # ── signup ─────────────────────────────────────────────────────────────────────
 
-async def signup(body: SignupRequest, db: AsyncSession, settings: Settings) -> SignupResponse:
+
+async def signup(
+    body: SignupRequest, db: AsyncSession, settings: Settings
+) -> SignupResponse:
     logger.info("Signup attempt | email=%s", body.email)
-    user_repo  = UserRepository(db)
+    user_repo = UserRepository(db)
     token_repo = RefreshTokenRepository(db)
 
     try:
@@ -77,7 +81,9 @@ async def signup(body: SignupRequest, db: AsyncSession, settings: Settings) -> S
             password_hash=hash_password(body.password),
         )
 
-        access_token, refresh_token = await _issue_token_pair(user.user_id, settings, token_repo)
+        access_token, refresh_token = await _issue_token_pair(
+            user.user_id, settings, token_repo
+        )
         await db.commit()
         await db.refresh(user)
 
@@ -96,18 +102,23 @@ async def signup(body: SignupRequest, db: AsyncSession, settings: Settings) -> S
 
 # ── login ──────────────────────────────────────────────────────────────────────
 
-async def login(body: LoginRequest, db: AsyncSession, settings: Settings) -> LoginResponse:
+
+async def login(
+    body: LoginRequest, db: AsyncSession, settings: Settings
+) -> LoginResponse:
     logger.info("Login attempt | email=%s", body.email)
-    user_repo  = UserRepository(db)
+    user_repo = UserRepository(db)
     token_repo = RefreshTokenRepository(db)
 
     try:
         user = await user_repo.get_by_email(body.email)
-        
+
         if not user or not verify_password(body.password, user.password_hash):
             raise InvalidCredentialsError()
 
-        access_token, refresh_token = await _issue_token_pair(user.user_id, settings, token_repo, user.role)
+        access_token, refresh_token = await _issue_token_pair(
+            user.user_id, settings, token_repo, user.role
+        )
         await db.commit()
         await db.refresh(user)
 
@@ -128,6 +139,7 @@ async def login(body: LoginRequest, db: AsyncSession, settings: Settings) -> Log
 
 # ── refresh ────────────────────────────────────────────────────────────────────
 
+
 async def refresh_token(
     raw_refresh_token: str,
     db: AsyncSession,
@@ -138,8 +150,8 @@ async def refresh_token(
 
     try:
         # 1. Cryptographic validation first
-        payload     = decode_refresh_token(raw_refresh_token, settings)
-        user_id     = int(payload["user_id"])
+        payload = decode_refresh_token(raw_refresh_token, settings)
+        user_id = int(payload["user_id"])
         refresh_jti = payload["jti"]
 
         # 2. DB checks via jti
@@ -149,11 +161,13 @@ async def refresh_token(
             raise TokenNotFoundError()
         if token_record.is_revoked:
             # Reuse detected — likely token theft, nuke everything for this user
-            logger.warning("Refresh token reuse detected — revoking all | user_id=%s", user_id)
+            logger.warning(
+                "Refresh token reuse detected — revoking all | user_id=%s", user_id
+            )
             await token_repo.revoke_all_for_user(user_id)
             await db.commit()
             raise TokenRevokedError()
-        if token_record.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        if token_record.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
             raise TokenExpiredError()
 
         # 3. Rotate — revoke old, issue new pair
@@ -173,6 +187,7 @@ async def refresh_token(
 
 
 # ── logout ─────────────────────────────────────────────────────────────────────
+
 
 async def logout(raw_refresh_token: str | None, db: AsyncSession) -> LogoutResponse:
     logger.info("Logout attempt")
@@ -197,6 +212,7 @@ async def logout(raw_refresh_token: str | None, db: AsyncSession) -> LogoutRespo
 
 
 # ── me ─────────────────────────────────────────────────────────────────────────
+
 
 async def get_current_user(user_id: int, db: AsyncSession) -> UserPublic:
     try:

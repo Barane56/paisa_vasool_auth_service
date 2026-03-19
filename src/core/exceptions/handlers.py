@@ -1,26 +1,28 @@
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from .exceptions import (
-    InvalidCredentialsError,
+    AppBaseException,
+    DatabaseError,
     EmailAlreadyExistsError,
+    InvalidCredentialsError,
+    TokenExpiredError,
     TokenInvalidError,
     TokenNotFoundError,
     TokenRevokedError,
-    TokenExpiredError,
     TokenTypeMismatchError,
     UserNotFoundError,
-    DatabaseError,
-    AppBaseException,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def _error_response(status_code: int, message: str, error_code: str = "") -> JSONResponse:
+def _error_response(
+    status_code: int, message: str, error_code: str = ""
+) -> JSONResponse:
     content = {"detail": message}
     if error_code:
         content["error_code"] = error_code
@@ -31,7 +33,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     """Register all domain + fallback exception handlers on the FastAPI app."""
 
     @app.exception_handler(InvalidCredentialsError)
-    async def invalid_credentials_handler(request: Request, exc: InvalidCredentialsError):
+    async def invalid_credentials_handler(
+        request: Request, exc: InvalidCredentialsError
+    ):
         logger.warning("Invalid credentials attempt | path=%s", request.url.path)
         return _error_response(401, exc.message, "INVALID_CREDENTIALS")
 
@@ -42,7 +46,9 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(TokenInvalidError)
     async def token_invalid_handler(request: Request, exc: TokenInvalidError):
-        logger.warning("Invalid token | path=%s detail=%s", request.url.path, exc.message)
+        logger.warning(
+            "Invalid token | path=%s detail=%s", request.url.path, exc.message
+        )
         return _error_response(401, exc.message, "TOKEN_INVALID")
 
     @app.exception_handler(TokenNotFoundError)
@@ -72,12 +78,16 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(DatabaseError)
     async def database_error_handler(request: Request, exc: DatabaseError):
-        logger.error("Database error | path=%s detail=%s", request.url.path, exc.message)
+        logger.error(
+            "Database error | path=%s detail=%s", request.url.path, exc.message
+        )
         return _error_response(503, "Service temporarily unavailable", "DATABASE_ERROR")
 
     @app.exception_handler(AppBaseException)
     async def app_base_handler(request: Request, exc: AppBaseException):
-        logger.error("Unhandled app exception | %s: %s", type(exc).__name__, exc.message)
+        logger.error(
+            "Unhandled app exception | %s: %s", type(exc).__name__, exc.message
+        )
         return _error_response(500, "An unexpected error occurred", "INTERNAL_ERROR")
 
     @app.exception_handler(RequestValidationError)
@@ -89,7 +99,11 @@ def register_exception_handlers(app: FastAPI) -> None:
         ]
         return JSONResponse(
             status_code=422,
-            content={"detail": "Validation failed", "errors": errors, "error_code": "VALIDATION_ERROR"},
+            content={
+                "detail": "Validation failed",
+                "errors": errors,
+                "error_code": "VALIDATION_ERROR",
+            },
         )
 
     @app.exception_handler(Exception)

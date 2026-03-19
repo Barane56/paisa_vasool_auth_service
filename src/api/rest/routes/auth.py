@@ -1,11 +1,12 @@
 import logging
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, EmailStr, Field, model_validator
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import Settings, get_settings
-from src.core.services import get_current_user, login, logout, refresh_token as refresh_token_service, signup
+from src.core.services import get_current_user, login, logout, signup
+from src.core.services import refresh_token as refresh_token_service
 from src.data.clients import get_db
 from src.data.repositories import UserRepository
 from src.schemas import (
@@ -33,65 +34,73 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 # ── POST /auth/signup ──────────────────────────────────────────────────────────
 
-@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED
+)
 async def signup_route(
     body: SignupRequest,
     response: Response,
-    db: AsyncSession   = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> SignupResponse:
     result = await signup(body, db, settings)
     _set_access_cookie(response, result.tokens.access_token, settings)
     _set_refresh_cookie(response, result.tokens.refresh_token, settings)
-    result.tokens.access_token  = ""
+    result.tokens.access_token = ""
     result.tokens.refresh_token = ""
     return result
 
 
 # ── POST /auth/login ───────────────────────────────────────────────────────────
 
+
 @router.post("/login", response_model=LoginResponse)
 async def login_route(
     body: LoginRequest,
     response: Response,
-    db: AsyncSession   = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> LoginResponse:
     result = await login(body, db, settings)
     _set_access_cookie(response, result.tokens.access_token, settings)
     _set_refresh_cookie(response, result.tokens.refresh_token, settings)
-    result.tokens.access_token  = ""
+    result.tokens.access_token = ""
     result.tokens.refresh_token = ""
     return result
 
 
 # ── POST /auth/refresh ─────────────────────────────────────────────────────────
 
+
 @router.post("/refresh", response_model=AccessTokenResponse)
 async def refresh_route(
     response: Response,
     refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
-    db: AsyncSession   = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> AccessTokenResponse:
     if not refresh_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token"
+        )
 
     result = await refresh_token_service(refresh_token, db, settings)
     _set_access_cookie(response, result.access_token, settings)
     _set_refresh_cookie(response, result.refresh_token, settings)
-    result.access_token  = ""
+    result.access_token = ""
     result.refresh_token = ""
     return result
 
 
 # ── POST /auth/logout ──────────────────────────────────────────────────────────
 
+
 @router.post("/logout", response_model=LogoutResponse)
 async def logout_route(
     response: Response,
     refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
-    db: AsyncSession        = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     identity: TokenIdentity = Depends(get_current_user_id),
 ) -> LogoutResponse:
     result = await logout(refresh_token, db)
@@ -102,9 +111,10 @@ async def logout_route(
 
 # ── GET /auth/me ───────────────────────────────────────────────────────────────
 
+
 @router.get("/me", response_model=UserPublic)
 async def me_route(
-    db: AsyncSession        = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     identity: TokenIdentity = Depends(get_current_user_id),
 ) -> UserPublic:
     return await get_current_user(identity.user_id, db)
@@ -112,10 +122,11 @@ async def me_route(
 
 # ─── Admin schemas ─────────────────────────────────────────────────────────────
 
+
 class CreateFARequest(BaseModel):
-    name:             str      = Field(..., min_length=2, max_length=100)
-    email:            EmailStr
-    password:         str      = Field(..., min_length=8, max_length=128)
+    name: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
     confirm_password: str
 
     @model_validator(mode="after")
@@ -132,19 +143,26 @@ class FAListResponse(BaseModel):
 
 # ── POST /auth/create-fa ───────────────────────────────────────────────────────
 
-@router.post("/create-fa", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/create-fa", response_model=UserPublic, status_code=status.HTTP_201_CREATED
+)
 async def create_fa_route(
     body: CreateFARequest,
-    db: AsyncSession        = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     identity: TokenIdentity = Depends(get_current_user_id),
 ) -> UserPublic:
     if identity.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
 
     user_repo = UserRepository(db)
     existing = await user_repo.get_by_email(body.email)
     if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
+        )
 
     user = await user_repo.create_with_role(
         name=body.name,
@@ -159,13 +177,16 @@ async def create_fa_route(
 
 # ── GET /auth/finance-associates ───────────────────────────────────────────────
 
+
 @router.get("/finance-associates", response_model=FAListResponse)
 async def list_fa_route(
-    db: AsyncSession        = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     identity: TokenIdentity = Depends(get_current_user_id),
 ) -> FAListResponse:
     if identity.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
 
     user_repo = UserRepository(db)
     users = await user_repo.get_all_by_role("finance_associate")
@@ -186,11 +207,12 @@ async def list_fa_route(
 #     -H "Content-Type: application/json" \
 #     -d '{"name":"Administrator","email":"admin@admin.com","password":"changeme123","confirm_password":"changeme123"}'
 
+
 class BootstrapAdminRequest(BaseModel):
-    name:             str      = Field(..., min_length=2,  max_length=100,  examples=["Administrator"])
-    email:            EmailStr = Field(...,                                  examples=["admin@admin.com"])
-    password:         str      = Field(..., min_length=8,  max_length=128,  examples=["changeme123"])
-    confirm_password: str      = Field(...,                                  examples=["changeme123"])
+    name: str = Field(..., min_length=2, max_length=100, examples=["Administrator"])
+    email: EmailStr = Field(..., examples=["admin@admin.com"])
+    password: str = Field(..., min_length=8, max_length=128, examples=["changeme123"])
+    confirm_password: str = Field(..., examples=["changeme123"])
 
     @model_validator(mode="after")
     def passwords_match(self) -> "BootstrapAdminRequest":
@@ -201,7 +223,7 @@ class BootstrapAdminRequest(BaseModel):
 
 class BootstrapAdminResponse(BaseModel):
     message: str
-    user:    UserPublic
+    user: UserPublic
 
 
 @router.post(
@@ -217,7 +239,7 @@ class BootstrapAdminResponse(BaseModel):
 )
 async def bootstrap_admin_route(
     body: BootstrapAdminRequest,
-    db:   AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> BootstrapAdminResponse:
     user_repo = UserRepository(db)
 
@@ -245,7 +267,9 @@ async def bootstrap_admin_route(
     await db.commit()
     await db.refresh(user)
 
-    logger.info("Bootstrap admin created | email=%s user_id=%s", user.email, user.user_id)
+    logger.info(
+        "Bootstrap admin created | email=%s user_id=%s", user.email, user.user_id
+    )
 
     return BootstrapAdminResponse(
         message=f"Admin account created for {user.email}. This endpoint is now locked.",

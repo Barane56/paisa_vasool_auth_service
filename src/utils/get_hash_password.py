@@ -16,6 +16,7 @@ Then run those SQL commands in your DB container:
 """
 
 import sys
+
 from passlib.context import CryptContext
 
 _pwd_ctx = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -26,8 +27,8 @@ def main() -> None:
         print("Usage: python -m src.utils.get_hash_password <password>")
         sys.exit(1)
 
-    password   = sys.argv[1]
-    hashed     = _pwd_ctx.hash(password)
+    password = sys.argv[1]
+    hashed = _pwd_ctx.hash(password)
     admin_name = "Administrator"
     admin_email = "admin@admin.com"
 

@@ -1,10 +1,13 @@
 # user_repository.py — UserRepository
 import logging
+
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.core.exceptions import DatabaseError
-from src.data.models.postgres import User, UserRole, Role
+from src.data.models.postgres import Role, User, UserRole
+
 from .role_repository import RoleRepository
 
 logger = logging.getLogger(__name__)
@@ -32,9 +35,13 @@ class UserRepository:
 
     async def create(self, name: str, email: str, password_hash: str) -> User:
         """Creates a user with the default 'finance_associate' role."""
-        return await self.create_with_role(name, email, password_hash, "finance_associate")
+        return await self.create_with_role(
+            name, email, password_hash, "finance_associate"
+        )
 
-    async def create_with_role(self, name: str, email: str, password_hash: str, role_name: str) -> User:
+    async def create_with_role(
+        self, name: str, email: str, password_hash: str, role_name: str
+    ) -> User:
         """Creates a user and assigns the given role via the user_roles table."""
         try:
             role = await RoleRepository(self.db).get_by_name(role_name)
@@ -58,7 +65,10 @@ class UserRepository:
         """Returns all users assigned to the given role."""
         try:
             result = await self.db.execute(
-                select(User).join(User.user_role).join(UserRole.role).where(Role.role_name == role_name)
+                select(User)
+                .join(User.user_role)
+                .join(UserRole.role)
+                .where(Role.role_name == role_name)
             )
             return list(result.scalars().all())
         except SQLAlchemyError as exc:

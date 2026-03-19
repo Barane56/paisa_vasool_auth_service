@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import (
 from src.config import get_settings
 from src.core.exceptions import DatabaseError
 
-logger   = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 engine = create_async_engine(

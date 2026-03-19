@@ -11,6 +11,7 @@ class AppBaseException(Exception):
 
 # ── Auth domain exceptions (no HTTP knowledge) ────────────────────────────────
 
+
 class AuthError(AppBaseException):
     """Base for all auth-related errors."""
 
@@ -22,7 +23,9 @@ class InvalidCredentialsError(AuthError):
 
 class EmailAlreadyExistsError(AuthError):
     def __init__(self, email: str = ""):
-        super().__init__(f"An account with this email already exists{f': {email}' if email else ''}")
+        super().__init__(
+            f"An account with this email already exists{f': {email}' if email else ''}"
+        )
         self.email = email
 
 
@@ -53,6 +56,7 @@ class TokenTypeMismatchError(AuthError):
 
 # ── User domain exceptions ────────────────────────────────────────────────────
 
+
 class UserError(AppBaseException):
     """Base for all user-related errors."""
 
@@ -64,6 +68,7 @@ class UserNotFoundError(UserError):
 
 
 # ── Infrastructure exceptions ─────────────────────────────────────────────────
+
 
 class DatabaseError(AppBaseException):
     """Raised when a DB operation fails unexpectedly."""
