@@ -1,7 +1,7 @@
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import Cookie, HTTPException, Response, status
@@ -10,19 +10,26 @@ from passlib.context import CryptContext
 
 from src.config import Settings, get_settings
 from src.constants import ACCESS_TOKEN_TYPE, REFRESH_TOKEN_TYPE
-from src.core.exceptions import TokenExpiredError, TokenInvalidError, TokenTypeMismatchError
+from src.core.exceptions import (
+    TokenExpiredError,
+    TokenInvalidError,
+    TokenTypeMismatchError,
+)
 
-logger   = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 _pwd_ctx = CryptContext(schemes=["argon2"], deprecated="auto")
 
-COOKIE_NAME            = "access_token"
-COOKIE_MAX_AGE         = 15 * 60        # 15 min — must match JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+COOKIE_NAME = "access_token"
+COOKIE_MAX_AGE = 15 * 60  # 15 min — must match JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 
-REFRESH_COOKIE_NAME    = "refresh_token"
-REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60  # 7 days — must match JWT_REFRESH_TOKEN_EXPIRE_DAYS
+REFRESH_COOKIE_NAME = "refresh_token"
+REFRESH_COOKIE_MAX_AGE = (
+    7 * 24 * 60 * 60
+)  # 7 days — must match JWT_REFRESH_TOKEN_EXPIRE_DAYS
 
 
 # ── Password ───────────────────────────────────────────────────────────────────
+
 
 def hash_password(plain: str) -> str:
     return _pwd_ctx.hash(plain)
@@ -38,6 +45,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 # ── Internal builder ───────────────────────────────────────────────────────────
 
+
 def _build_token(
     payload: dict,
     secret: str,
@@ -50,13 +58,13 @@ def _build_token(
     Returns (encoded_jwt, jti).
     """
     jti = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     claims = {
         **payload,
         "type": token_type,
-        "iat":  now,
-        "exp":  now + expires_delta,
-        "jti":  jti,
+        "iat": now,
+        "exp": now + expires_delta,
+        "jti": jti,
     }
     try:
         token = jwt.encode(claims, secret, algorithm=algorithm)
@@ -68,7 +76,10 @@ def _build_token(
 
 # ── Public token creators ──────────────────────────────────────────────────────
 
-def create_access_token(user_id: int, settings: Settings, role: str = "finance_associate") -> tuple[str, str]:
+
+def create_access_token(
+    user_id: int, settings: Settings, role: str = "finance_associate"
+) -> tuple[str, str]:
     """Returns (access_token, jti)."""
     return _build_token(
         payload={"sub": str(user_id), "user_id": user_id, "role": role},
@@ -92,9 +103,12 @@ def create_refresh_token(user_id: int, settings: Settings) -> tuple[str, str]:
 
 # ── Token decoding ─────────────────────────────────────────────────────────────
 
+
 def decode_access_token(token: str, settings: Settings) -> dict:
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
     except ExpiredSignatureError:
         raise TokenExpiredError()
     except JWTError as exc:
@@ -107,7 +121,9 @@ def decode_access_token(token: str, settings: Settings) -> dict:
 
 def decode_refresh_token(token: str, settings: Settings) -> dict:
     try:
-        payload = jwt.decode(token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(
+            token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
     except ExpiredSignatureError:
         raise TokenExpiredError()
     except JWTError as exc:
@@ -119,6 +135,7 @@ def decode_refresh_token(token: str, settings: Settings) -> dict:
 
 
 # ── FastAPI auth dependency ────────────────────────────────────────────────────
+
 
 @dataclass
 class TokenIdentity:
@@ -132,7 +149,9 @@ async def get_current_user_id(
 ) -> TokenIdentity:
     # print("get_current_user_id called with access_token:", access_token)
     if not access_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
 
     settings = get_settings()
     try:
@@ -142,21 +161,28 @@ async def get_current_user_id(
             algorithms=[settings.JWT_ALGORITHM],
         )
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
 
     user_id = payload.get("user_id")
-    jti     = payload.get("jti")
-    role    = payload.get("role", "finance_associate")
+    jti = payload.get("jti")
+    role = payload.get("role", "finance_associate")
 
     if user_id is None or jti is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed token payload")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed token payload"
+        )
 
     return TokenIdentity(user_id=int(user_id), jti=jti, role=role)
 
 
 # ── Cookie helpers ─────────────────────────────────────────────────────────────
 
-def _set_access_cookie(response: Response, access_token: str, settings: Settings) -> None:
+
+def _set_access_cookie(
+    response: Response, access_token: str, settings: Settings
+) -> None:
     response.set_cookie(
         key=COOKIE_NAME,
         value=access_token,
@@ -171,16 +197,17 @@ def _clear_access_cookie(response: Response) -> None:
     response.delete_cookie(key=COOKIE_NAME, path="/")
 
 
-def _set_refresh_cookie(response: Response, refresh_token: str, settings: Settings) -> None:
+def _set_refresh_cookie(
+    response: Response, refresh_token: str, settings: Settings
+) -> None:
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
         samesite="lax",
         max_age=REFRESH_COOKIE_MAX_AGE,
-        path="/",   # scoped — browser only sends this to the refresh endpoint
+        path="/",  # scoped — browser only sends this to the refresh endpoint
     )
-
 
 
 def _clear_refresh_cookie(response: Response) -> None:

@@ -6,8 +6,9 @@ from src.config import get_settings
 settings = get_settings()
 
 ALLOWED_ORIGINS = (
-    ["http://localhost:3000"] if settings.ENVIRONMENT == "development"
-    else ["http://localhost:3000"]   # restrict in staging/production
+    ["http://localhost:3000"]
+    if settings.ENVIRONMENT == "development"
+    else ["http://localhost:3000"]  # restrict in staging/production
 )
 
 

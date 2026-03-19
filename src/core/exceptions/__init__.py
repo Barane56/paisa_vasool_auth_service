@@ -1,16 +1,16 @@
 from .exceptions import (
     AppBaseException,
     AuthError,
-    InvalidCredentialsError,
+    DatabaseError,
     EmailAlreadyExistsError,
+    InvalidCredentialsError,
+    TokenExpiredError,
     TokenInvalidError,
     TokenNotFoundError,
     TokenRevokedError,
-    TokenExpiredError,
     TokenTypeMismatchError,
     UserError,
     UserNotFoundError,
-    DatabaseError,
 )
 from .handlers import register_exception_handlers
 
