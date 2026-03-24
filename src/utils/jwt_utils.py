@@ -187,7 +187,8 @@ def _set_access_cookie(
         key=COOKIE_NAME,
         value=access_token,
         httponly=True,
-        samesite="lax",
+        samesite="none",
+        secure=True,
         max_age=COOKIE_MAX_AGE,
         path="/",
     )
@@ -204,9 +205,10 @@ def _set_refresh_cookie(
         key=REFRESH_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
-        samesite="lax",
+        samesite="none",
+        secure=True,
         max_age=REFRESH_COOKIE_MAX_AGE,
-        path="/",  # scoped — browser only sends this to the refresh endpoint
+        path="/",  
     )
 
 

@@ -6,9 +6,12 @@ WORKDIR /app
 COPY requirements/requirements.txt requirements/requirements.txt
 RUN pip install --no-cache-dir -r requirements/requirements.txt
 
-
 COPY src/ ./src/
 COPY .env .env
+
+# dont forget to remove this when deploying
+# can cause skipping cloud run's health check
+
 # COPY entrypoint.sh /entrypoint.sh
 # RUN chmod +x /entrypoint.sh
 
