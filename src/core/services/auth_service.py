@@ -127,7 +127,6 @@ async def login(
             user=UserPublic.model_validate(user),
             tokens=TokenPair(access_token=access_token, refresh_token=refresh_token),
         )
-        print(lr)
         return lr
     except (InvalidCredentialsError, DatabaseError):
         raise
