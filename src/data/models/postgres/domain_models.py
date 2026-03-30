@@ -323,7 +323,7 @@ class DisputeAIAnalysis(Base):
     memory_context_used = Column(
         Boolean, default=False, server_default=text("FALSE"), nullable=False
     )
-    episodes_referenced = Column(ARRAY(Integer), nullable=True)
+    episodes_referenced: Column[list[int]] = Column(ARRAY(Integer), nullable=True)
 
     dispute = relationship("DisputeMaster", back_populates="ai_analyses", lazy="joined")
     supporting_refs = relationship(

@@ -20,7 +20,7 @@ class RefreshTokenRepository:
     async def get_by_token(self, token: str) -> RefreshToken | None:
         try:
             result = await self.db.execute(
-                select(RefreshToken).where(RefreshToken.refresh_token == token)
+                select(RefreshToken).where(RefreshToken.refresh_token.is_(token))
             )
             return result.scalar_one_or_none()
         except SQLAlchemyError as exc:
@@ -63,7 +63,7 @@ class RefreshTokenRepository:
 
     async def revoke(self, token_record: RefreshToken) -> None:
         try:
-            token_record.is_revoked = True
+            token_record.is_revoked = True  # type: ignore
             await self.db.flush()
             logger.debug(
                 "Refresh token revoked | token_id=%s jti=%s",
@@ -81,7 +81,7 @@ class RefreshTokenRepository:
             await self.db.execute(
                 update(RefreshToken)
                 .where(
-                    RefreshToken.user_id == user_id, RefreshToken.is_revoked == False
+                    RefreshToken.user_id == user_id, RefreshToken.is_revoked.is_(False)
                 )
                 .values(is_revoked=True)
             )

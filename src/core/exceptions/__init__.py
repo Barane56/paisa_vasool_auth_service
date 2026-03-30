@@ -1,5 +1,5 @@
 from .exceptions import (
-    AppBaseException,
+    AppBaseError,
     AuthError,
     DatabaseError,
     EmailAlreadyExistsError,
@@ -15,7 +15,7 @@ from .exceptions import (
 from .handlers import register_exception_handlers
 
 __all__ = [
-    "AppBaseException",
+    "AppBaseError",
     "AuthError",
     "InvalidCredentialsError",
     "EmailAlreadyExistsError",

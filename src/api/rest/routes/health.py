@@ -8,12 +8,12 @@ router = APIRouter(tags=["Health"])
 
 
 @router.get("/health", summary="Health check")
-async def health():
+async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
 @router.get("/health/db", summary="Database connectivity check")
-async def health_db(db: AsyncSession = Depends(get_db)):
+async def health_db(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     try:
         await db.execute(text("SELECT 1"))
         return {"status": "ok", "database": "reachable"}
