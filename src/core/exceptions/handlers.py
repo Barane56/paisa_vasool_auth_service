@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from .exceptions import (
-    AppBaseException,
+    AppBaseError,
     DatabaseError,
     EmailAlreadyExistsError,
     InvalidCredentialsError,
@@ -35,66 +35,84 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(InvalidCredentialsError)
     async def invalid_credentials_handler(
         request: Request, exc: InvalidCredentialsError
-    ):
+    ) -> JSONResponse:
         logger.warning("Invalid credentials attempt | path=%s", request.url.path)
         return _error_response(401, exc.message, "INVALID_CREDENTIALS")
 
     @app.exception_handler(EmailAlreadyExistsError)
-    async def email_exists_handler(request: Request, exc: EmailAlreadyExistsError):
+    async def email_exists_handler(
+        request: Request, exc: EmailAlreadyExistsError
+    ) -> JSONResponse:
         logger.warning("Duplicate email signup | email=%s", exc.email)
         return _error_response(409, exc.message, "EMAIL_ALREADY_EXISTS")
 
     @app.exception_handler(TokenInvalidError)
-    async def token_invalid_handler(request: Request, exc: TokenInvalidError):
+    async def token_invalid_handler(
+        request: Request, exc: TokenInvalidError
+    ) -> JSONResponse:
         logger.warning(
             "Invalid token | path=%s detail=%s", request.url.path, exc.message
         )
         return _error_response(401, exc.message, "TOKEN_INVALID")
 
     @app.exception_handler(TokenNotFoundError)
-    async def token_not_found_handler(request: Request, exc: TokenNotFoundError):
+    async def token_not_found_handler(
+        request: Request, exc: TokenNotFoundError
+    ) -> JSONResponse:
         logger.warning("Token not found | path=%s", request.url.path)
         return _error_response(401, exc.message, "TOKEN_NOT_FOUND")
 
     @app.exception_handler(TokenRevokedError)
-    async def token_revoked_handler(request: Request, exc: TokenRevokedError):
+    async def token_revoked_handler(
+        request: Request, exc: TokenRevokedError
+    ) -> JSONResponse:
         logger.warning("Revoked token used | path=%s", request.url.path)
         return _error_response(401, exc.message, "TOKEN_REVOKED")
 
     @app.exception_handler(TokenExpiredError)
-    async def token_expired_handler(request: Request, exc: TokenExpiredError):
+    async def token_expired_handler(
+        request: Request, exc: TokenExpiredError
+    ) -> JSONResponse:
         logger.info("Expired token used | path=%s", request.url.path)
         return _error_response(401, exc.message, "TOKEN_EXPIRED")
 
     @app.exception_handler(TokenTypeMismatchError)
-    async def token_type_handler(request: Request, exc: TokenTypeMismatchError):
+    async def token_type_handler(
+        request: Request, exc: TokenTypeMismatchError
+    ) -> JSONResponse:
         logger.warning("Token type mismatch | path=%s", request.url.path)
         return _error_response(401, exc.message, "TOKEN_TYPE_MISMATCH")
 
     @app.exception_handler(UserNotFoundError)
-    async def user_not_found_handler(request: Request, exc: UserNotFoundError):
+    async def user_not_found_handler(
+        request: Request, exc: UserNotFoundError
+    ) -> JSONResponse:
         logger.info("User not found | identifier=%s", exc.identifier)
         return _error_response(404, exc.message, "USER_NOT_FOUND")
 
     @app.exception_handler(DatabaseError)
-    async def database_error_handler(request: Request, exc: DatabaseError):
+    async def database_error_handler(
+        request: Request, exc: DatabaseError
+    ) -> JSONResponse:
         logger.error(
             "Database error | path=%s detail=%s", request.url.path, exc.message
         )
         return _error_response(503, "Service temporarily unavailable", "DATABASE_ERROR")
 
-    @app.exception_handler(AppBaseException)
-    async def app_base_handler(request: Request, exc: AppBaseException):
+    @app.exception_handler(AppBaseError)
+    async def app_base_handler(request: Request, exc: AppBaseError) -> JSONResponse:
         logger.error(
             "Unhandled app exception | %s: %s", type(exc).__name__, exc.message
         )
         return _error_response(500, "An unexpected error occurred", "INTERNAL_ERROR")
 
     @app.exception_handler(RequestValidationError)
-    async def validation_error_handler(request: Request, exc: RequestValidationError):
+    async def validation_error_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
         logger.info("Validation error | path=%s", request.url.path)
         errors = [
-            {"field": ".".join(str(l) for l in err["loc"]), "message": err["msg"]}
+            {"field": ".".join(str(loc) for loc in err["loc"]), "message": err["msg"]}
             for err in exc.errors()
         ]
         return JSONResponse(
@@ -107,6 +125,8 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(request: Request, exc: Exception):
+    async def unhandled_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
         logger.exception("Unhandled exception | path=%s", request.url.path)
         return _error_response(500, "An unexpected error occurred", "INTERNAL_ERROR")

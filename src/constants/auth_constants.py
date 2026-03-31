@@ -1,6 +1,8 @@
+from typing import Literal
+
 # Token types
-ACCESS_TOKEN_TYPE = "access"
-REFRESH_TOKEN_TYPE = "refresh"
+ACCESS_TOKEN_TYPE: Literal["access"] = "access"
+REFRESH_TOKEN_TYPE: Literal["refresh"] = "refresh"
 
 # Auth header
 BEARER_PREFIX = "Bearer"

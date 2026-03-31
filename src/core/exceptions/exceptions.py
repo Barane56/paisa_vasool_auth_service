@@ -1,4 +1,4 @@
-class AppBaseException(Exception):
+class AppBaseError(Exception):
     """Root exception for all application-level errors."""
 
     def __init__(self, message: str):
@@ -12,17 +12,17 @@ class AppBaseException(Exception):
 # ── Auth domain exceptions (no HTTP knowledge) ────────────────────────────────
 
 
-class AuthError(AppBaseException):
+class AuthError(AppBaseError):
     """Base for all auth-related errors."""
 
 
 class InvalidCredentialsError(AuthError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("Invalid email or password")
 
 
 class EmailAlreadyExistsError(AuthError):
-    def __init__(self, email: str = ""):
+    def __init__(self, email: str = "") -> None:
         super().__init__(
             f"An account with this email already exists{f': {email}' if email else ''}"
         )
@@ -30,39 +30,39 @@ class EmailAlreadyExistsError(AuthError):
 
 
 class TokenInvalidError(AuthError):
-    def __init__(self, detail: str = "Invalid or expired token"):
+    def __init__(self, detail: str = "Invalid or expired token") -> None:
         super().__init__(detail)
 
 
 class TokenNotFoundError(AuthError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("Refresh token not found")
 
 
 class TokenRevokedError(AuthError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("Refresh token has been revoked")
 
 
 class TokenExpiredError(AuthError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("Refresh token has expired")
 
 
 class TokenTypeMismatchError(AuthError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("Invalid token type")
 
 
 # ── User domain exceptions ────────────────────────────────────────────────────
 
 
-class UserError(AppBaseException):
+class UserError(AppBaseError):
     """Base for all user-related errors."""
 
 
 class UserNotFoundError(UserError):
-    def __init__(self, identifier: str = ""):
+    def __init__(self, identifier: str = "") -> None:
         super().__init__(f"User not found{f': {identifier}' if identifier else ''}")
         self.identifier = identifier
 
@@ -70,8 +70,8 @@ class UserNotFoundError(UserError):
 # ── Infrastructure exceptions ─────────────────────────────────────────────────
 
 
-class DatabaseError(AppBaseException):
+class DatabaseError(AppBaseError):
     """Raised when a DB operation fails unexpectedly."""
 
-    def __init__(self, detail: str = "A database error occurred"):
+    def __init__(self, detail: str = "A database error occurred") -> None:
         super().__init__(detail)

@@ -63,7 +63,8 @@ ON CONFLICT (user_id) DO UPDATE
 docker exec -it <db_container> psql -U <db_user> -d <db_name> -c \\
   "INSERT INTO users (name, email, password_hash) \\
    VALUES ('{admin_name}', '{admin_email}', '{hashed}') \\
-   ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash, name=EXCLUDED.name; \\
+   ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash, \\
+   name=EXCLUDED.name; \\
    INSERT INTO user_roles (user_id, role_id) \\
    SELECT u.user_id, r.role_id FROM users u, roles r \\
    WHERE u.email='{admin_email}' AND r.role_name='admin' \\

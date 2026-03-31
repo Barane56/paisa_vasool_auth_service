@@ -1,13 +1,13 @@
-# response_schemas.py — outbound auth response schemas
 from datetime import datetime
+from typing import Annotated
 
 from pydantic import BaseModel, EmailStr, Field
 
 
 class TokenPair(BaseModel):
-    access_token: str = Field(..., description="Short-lived JWT access token")
-    refresh_token: str = Field(..., description="Long-lived JWT refresh token")
-    token_type: str = Field(default="bearer")
+    access_token: Annotated[str, Field(description="Short-lived JWT access token")]
+    refresh_token: Annotated[str, Field(description="Long-lived JWT refresh token")]
+    token_type: Annotated[str, Field(description="Token type")] = "bearer"
 
 
 class AccessTokenResponse(BaseModel):
@@ -16,7 +16,9 @@ class AccessTokenResponse(BaseModel):
 
 
 class LogoutResponse(BaseModel):
-    message: str = Field(default="Successfully logged out")
+    message: Annotated[str, Field(description="Success message")] = (
+        "Successfully logged out"
+    )
 
 
 class UserPublic(BaseModel):

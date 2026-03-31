@@ -1,19 +1,35 @@
 FROM python:3.13-slim-bookworm
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV UV_PROJECT_ENVIRONMENT=/usr/local
+
 WORKDIR /app
 
+# Create a non-root user and group
+RUN groupadd -r appgroup && useradd -r -g appgroup -s /sbin/nologin appuser
 
-COPY requirements/requirements.txt requirements/requirements.txt
-RUN pip install --no-cache-dir -r requirements/requirements.txt
+# Copy dependency files first for caching
+COPY pyproject.toml uv.lock ./
 
+# Install dependencies
+RUN uv sync --no-dev --no-install-project
+
+# Copy application source and other necessary files
 COPY src/ ./src/
 COPY .env .env
-
-# dont forget to remove this when deploying
-# can cause skipping cloud run's health check
-
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+
+# Fix permissions for entrypoint and app directory
+RUN chmod +x /entrypoint.sh && \
+    chown -R appuser:appgroup /app /entrypoint.sh
+
+# Switch to non-root user
+USER appuser
 
 EXPOSE 8001
 

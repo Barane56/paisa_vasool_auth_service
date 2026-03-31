@@ -12,7 +12,10 @@ def setup_logging() -> None:
     fmt = (
         "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
         if settings.ENVIRONMENT != "production"
-        else '{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}'
+        else (
+            '{"time":"%(asctime)s","level":"%(levelname)s",'
+            '"logger":"%(name)s","message":"%(message)s"}'
+        )
     )
 
     logging.basicConfig(
