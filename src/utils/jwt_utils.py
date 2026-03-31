@@ -2,7 +2,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import Cookie, HTTPException, Response, status
 from jose import ExpiredSignatureError, JWTError, jwt
@@ -37,7 +37,7 @@ def hash_password(plain: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     try:
-        return _pwd_ctx.verify(plain, hashed)
+        return bool(_pwd_ctx.verify(plain, hashed))
     except Exception as exc:
         logger.error("Password verification error: %s", exc)
         return False
@@ -47,7 +47,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def _build_token(
-    payload: dict,
+    payload: dict[str, Any],
     secret: str,
     algorithm: str,
     expires_delta: timedelta,
@@ -104,13 +104,15 @@ def create_refresh_token(user_id: int, settings: Settings) -> tuple[str, str]:
 # ── Token decoding ─────────────────────────────────────────────────────────────
 
 
-def decode_access_token(token: str, settings: Settings) -> dict:
+def decode_access_token(token: str, settings: Settings) -> dict[str, Any]:
     try:
-        payload = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        payload = dict(
+            jwt.decode(
+                token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+            )
         )
     except ExpiredSignatureError:
-        raise TokenExpiredError()
+        raise TokenExpiredError() from None
     except JWTError as exc:
         raise TokenInvalidError("Invalid access token") from exc
 
@@ -119,13 +121,17 @@ def decode_access_token(token: str, settings: Settings) -> dict:
     return payload
 
 
-def decode_refresh_token(token: str, settings: Settings) -> dict:
+def decode_refresh_token(token: str, settings: Settings) -> dict[str, Any]:
     try:
-        payload = jwt.decode(
-            token, settings.JWT_REFRESH_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        payload = dict(
+            jwt.decode(
+                token,
+                settings.JWT_REFRESH_SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+            )
         )
     except ExpiredSignatureError:
-        raise TokenExpiredError()
+        raise TokenExpiredError() from None
     except JWTError as exc:
         raise TokenInvalidError("Invalid refresh token") from exc
 
@@ -163,7 +169,7 @@ async def get_current_user_id(
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
-        )
+        ) from None
 
     user_id = payload.get("user_id")
     jti = payload.get("jti")
@@ -187,7 +193,8 @@ def _set_access_cookie(
         key=COOKIE_NAME,
         value=access_token,
         httponly=True,
-        samesite="lax",
+        samesite="none",
+        secure=True,
         max_age=COOKIE_MAX_AGE,
         path="/",
     )
@@ -204,9 +211,10 @@ def _set_refresh_cookie(
         key=REFRESH_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
-        samesite="lax",
+        samesite="none",
+        secure=True,
         max_age=REFRESH_COOKIE_MAX_AGE,
-        path="/",  # scoped — browser only sends this to the refresh endpoint
+        path="/",
     )
 
 

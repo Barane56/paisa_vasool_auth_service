@@ -78,11 +78,11 @@ async def signup(
         user = await user_repo.create(
             name=body.name,
             email=body.email,
-            password_hash=hash_password(body.password),
+            password_hash=hash_password(body.password.get_secret_value()),
         )
 
         access_token, refresh_token = await _issue_token_pair(
-            user.user_id, settings, token_repo
+            int(user.user_id), settings, token_repo
         )
         await db.commit()
         await db.refresh(user)
@@ -113,11 +113,13 @@ async def login(
     try:
         user = await user_repo.get_by_email(body.email)
 
-        if not user or not verify_password(body.password, user.password_hash):
+        if not user or not verify_password(
+            body.password.get_secret_value(), str(user.password_hash)
+        ):
             raise InvalidCredentialsError()
 
         access_token, refresh_token = await _issue_token_pair(
-            user.user_id, settings, token_repo, user.role
+            int(user.user_id), settings, token_repo, user.role
         )
         await db.commit()
         await db.refresh(user)
@@ -125,9 +127,12 @@ async def login(
         logger.info("Login OK | user_id=%s", user.user_id)
         lr = LoginResponse(
             user=UserPublic.model_validate(user),
-            tokens=TokenPair(access_token=access_token, refresh_token=refresh_token),
+            tokens=TokenPair(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                token_type="bearer",
+            ),
         )
-        print(lr)
         return lr
     except (InvalidCredentialsError, DatabaseError):
         raise

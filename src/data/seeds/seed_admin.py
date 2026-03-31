@@ -29,7 +29,7 @@ ADMIN_NAME = "Administrator"
 async def seed() -> None:
     settings = get_settings()
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
 
     hashed = _pwd_ctx.hash(ADMIN_PASSWORD)
     logger.info("Generated fresh argon2 hash for admin password")

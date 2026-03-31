@@ -1,7 +1,8 @@
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, SecretStr, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import Settings, get_settings
@@ -124,14 +125,14 @@ async def me_route(
 
 
 class CreateFARequest(BaseModel):
-    name: str = Field(..., min_length=2, max_length=100)
+    name: Annotated[str, Field(min_length=2, max_length=100)]
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=128)
-    confirm_password: str
+    password: Annotated[SecretStr, Field(min_length=8, max_length=128)]
+    confirm_password: SecretStr
 
     @model_validator(mode="after")
     def passwords_match(self) -> "CreateFARequest":
-        if self.password != self.confirm_password:
+        if self.password.get_secret_value() != self.confirm_password.get_secret_value():
             raise ValueError("password and confirm_password do not match")
         return self
 
@@ -167,7 +168,7 @@ async def create_fa_route(
     user = await user_repo.create_with_role(
         name=body.name,
         email=body.email,
-        password_hash=hash_password(body.password),
+        password_hash=hash_password(body.password.get_secret_value()),
         role_name="finance_associate",
     )
     await db.commit()
@@ -203,20 +204,25 @@ async def list_fa_route(
 # No authentication required (that's the whole point).
 #
 # curl example:
-#   curl -X POST http://localhost:8000/auth/api/v1/auth/bootstrap-admin \
-#     -H "Content-Type: application/json" \
-#     -d '{"name":"Administrator","email":"admin@admin.com","password":"changeme123","confirm_password":"changeme123"}'
+#     -d '{"name":"Administrator", \
+#          "email":"admin@admin.com", \
+#          "password":"changeme123", \
+#          "confirm_password":"changeme123"}'
 
 
 class BootstrapAdminRequest(BaseModel):
-    name: str = Field(..., min_length=2, max_length=100, examples=["Administrator"])
-    email: EmailStr = Field(..., examples=["admin@admin.com"])
-    password: str = Field(..., min_length=8, max_length=128, examples=["changeme123"])
-    confirm_password: str = Field(..., examples=["changeme123"])
+    name: Annotated[
+        str, Field(min_length=2, max_length=100, examples=["Administrator"])
+    ]
+    email: Annotated[EmailStr, Field(examples=["admin@admin.com"])]
+    password: Annotated[
+        SecretStr, Field(min_length=8, max_length=128, examples=["changeme123"])
+    ]
+    confirm_password: Annotated[SecretStr, Field(examples=["changeme123"])]
 
     @model_validator(mode="after")
     def passwords_match(self) -> "BootstrapAdminRequest":
-        if self.password != self.confirm_password:
+        if self.password.get_secret_value() != self.confirm_password.get_secret_value():
             raise ValueError("password and confirm_password do not match")
         return self
 
@@ -233,7 +239,8 @@ class BootstrapAdminResponse(BaseModel):
     summary="Bootstrap first admin (one-time, no auth required)",
     description=(
         "Creates the first admin account. "
-        "**Returns 409 if an admin already exists** — making this endpoint safe to leave enabled; "
+        "**Returns 409 if an admin already exists** — "
+        "making this endpoint safe to leave enabled; "
         "it is self-locking once used."
     ),
 )
@@ -261,7 +268,7 @@ async def bootstrap_admin_route(
     user = await user_repo.create_with_role(
         name=body.name,
         email=body.email,
-        password_hash=hash_password(body.password),
+        password_hash=hash_password(body.password.get_secret_value()),
         role_name="admin",
     )
     await db.commit()

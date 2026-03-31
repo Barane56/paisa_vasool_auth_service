@@ -65,9 +65,9 @@ class User(Base):
 
     @property
     def role(self) -> str:
-        """Convenience property — returns role_name string or 'finance_associate' as default."""
+        """Returns role_name or 'finance_associate'."""
         if self.user_role and self.user_role.role:
-            return self.user_role.role.role_name
+            return str(self.user_role.role.role_name)
         return "finance_associate"
 
     def __repr__(self) -> str:
